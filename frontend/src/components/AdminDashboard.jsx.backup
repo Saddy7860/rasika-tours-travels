@@ -1,0 +1,2313 @@
+import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  FaBus,
+  FaTrain,
+  FaPlane,
+  FaEdit,
+  FaTrash,
+  FaPlus,
+  FaSave,
+  FaTimes,
+  FaArrowLeft,
+  FaClipboardList,
+  FaPassport
+} from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
+import adminService from '../services/adminService';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend
+} from 'recharts';
+
+import './AdminDashboard.css';
+
+const emptyForms = {
+  bus: {
+    busNumber: '',
+    operator: '',
+    fromCity: '',
+    toCity: '',
+    departureTime: '',
+    arrivalTime: '',
+    price: '',
+    availableSeats: '',
+    busType: 'AC',
+    active: true
+  },
+  train: {
+    trainNumber: '',
+    trainName: '',
+    fromStation: '',
+    toStation: '',
+    departureTime: '',
+    arrivalTime: '',
+    price: '',
+    availableSeats: '',
+    trainClass: 'Sleeper',
+    active: true
+  },
+  flight: {
+    flightNumber: '',
+    airline: '',
+    fromCity: '',
+    toCity: '',
+    departureTime: '',
+    arrivalTime: '',
+    price: '',
+    availableSeats: '',
+    flightClass: 'Economy',
+    active: true
+  }
+};
+
+const config = {
+  bus: {
+    title: 'Bus Management',
+    singular: 'Bus',
+    icon: <FaBus />,
+    get: adminService.getAllBuses,
+    create: adminService.createBus,
+    update: adminService.updateBus,
+    delete: adminService.deleteBus,
+    fields: [
+      ['busNumber', 'Bus Number', 'text'],
+      ['operator', 'Operator', 'text'],
+      ['fromCity', 'From City', 'text'],
+      ['toCity', 'To City', 'text'],
+      ['departureTime', 'Departure Time', 'datetime-local'],
+      ['arrivalTime', 'Arrival Time', 'datetime-local'],
+      ['price', 'Price', 'number'],
+      ['availableSeats', 'Available Seats', 'number'],
+      ['busType', 'Bus Type', 'text']
+    ]
+  },
+  train: {
+    title: 'Train Management',
+    singular: 'Train',
+    icon: <FaTrain />,
+    get: adminService.getAllTrains,
+    create: adminService.createTrain,
+    update: adminService.updateTrain,
+    delete: adminService.deleteTrain,
+    fields: [
+      ['trainNumber', 'Train Number', 'text'],
+      ['trainName', 'Train Name', 'text'],
+      ['fromStation', 'From Station', 'text'],
+      ['toStation', 'To Station', 'text'],
+      ['departureTime', 'Departure Time', 'datetime-local'],
+      ['arrivalTime', 'Arrival Time', 'datetime-local'],
+      ['price', 'Price', 'number'],
+      ['availableSeats', 'Available Seats', 'number'],
+      ['trainClass', 'Train Class', 'text']
+    ]
+  },
+  flight: {
+    title: 'Flight Management',
+    singular: 'Flight',
+    icon: <FaPlane />,
+    get: adminService.getAllFlights,
+    create: adminService.createFlight,
+    update: adminService.updateFlight,
+    delete: adminService.deleteFlight,
+    fields: [
+      ['flightNumber', 'Flight Number', 'text'],
+      ['airline', 'Airline', 'text'],
+      ['fromCity', 'From City', 'text'],
+      ['toCity', 'To City', 'text'],
+      ['departureTime', 'Departure Time', 'datetime-local'],
+      ['arrivalTime', 'Arrival Time', 'datetime-local'],
+      ['price', 'Price', 'number'],
+      ['availableSeats', 'Available Seats', 'number'],
+      ['flightClass', 'Flight Class', 'text']
+    ]
+  }
+};
+
+function toInputDateTime(value) {
+  if (!value) return '';
+  return value.length >= 16 ? value.slice(0, 16) : value;
+}
+
+const getErrorMessage = (err) => {
+  const data = err?.response?.data;
+
+  if (typeof data === 'string') return data;
+
+  if (data && typeof data === 'object') {
+    return data.message || data.error || `Request failed (${data.status || 'Unknown error'})`;
+  }
+
+  return err?.message || 'Something went wrong.';
+};
+
+function AdminDashboard() {
+  const navigate = useNavigate();
+  const { user, isLoggedIn } = useAuth();
+
+  const [tab, setTab] = useState('dashboard');
+  const [items, setItems] = useState([]);
+  const [bookings, setBookings] = useState([]);
+
+  const [passportRequests, setPassportRequests] = useState([]);
+  const [passportLoading, setPassportLoading] = useState(false);
+  const [selectedPassport, setSelectedPassport] = useState(null);
+
+  const [contactMessages, setContactMessages] = useState([]);
+
+  const [contactLoading, setContactLoading] = useState(false);
+
+  const [selectedContact, setSelectedContact] = useState(null);
+
+  const [contactReply, setContactReply] = useState('');
+
+  const [contactReplyLoading, setContactReplyLoading] = useState(false);
+
+  const [passportSearch, setPassportSearch] = useState('');
+  const [passportStatusFilter, setPassportStatusFilter] = useState('');
+  const [passportSort, setPassportSort] = useState('NEWEST');
+  const [passportStatusDrafts, setPassportStatusDrafts] = useState({});
+  const [passportRemarksDrafts, setPassportRemarksDrafts] = useState({});
+
+  const [stats, setStats] = useState({
+    totalBookings: 0,
+    confirmedBookings: 0,
+    cancelledBookings: 0,
+    totalRevenue: 0
+  });
+
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [bookingTypeFilter, setBookingTypeFilter] = useState('');
+  const [bookingStatusFilter, setBookingStatusFilter] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ ...emptyForms.bus });
+
+  const current = config[tab] || config.bus;
+
+
+  const analyticsData = useMemo(() => {
+    const validBookings = bookings
+      .map((booking) => {
+        const rawDate =
+          booking.bookingDate ||
+          booking.createdAt ||
+          booking.bookedAt;
+
+        const dateObj = rawDate ? new Date(rawDate) : null;
+
+        return {
+          ...booking,
+          analyticsDate: dateObj
+        };
+      })
+      .filter(
+        (booking) =>
+          booking.analyticsDate &&
+          !Number.isNaN(booking.analyticsDate.getTime())
+      );
+
+    const latestDate = validBookings.length
+      ? new Date(
+          Math.max(
+            ...validBookings.map((booking) =>
+              booking.analyticsDate.getTime()
+            )
+          )
+        )
+      : new Date();
+
+    latestDate.setHours(12, 0, 0, 0);
+
+    const grouped = {};
+    const days = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const dateObj = new Date(latestDate);
+      dateObj.setDate(latestDate.getDate() - i);
+
+      const key = dateObj.toISOString().slice(0, 10);
+
+      const day = {
+        key,
+        date: dateObj.toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short'
+        }),
+        revenue: 0,
+        confirmed: 0,
+        cancelled: 0,
+        pending: 0
+      };
+
+      grouped[key] = day;
+      days.push(day);
+    }
+
+    validBookings.forEach((booking) => {
+      const key = booking.analyticsDate
+        .toISOString()
+        .slice(0, 10);
+
+      const day = grouped[key];
+
+      if (!day) return;
+
+      const status = String(
+        booking.bookingStatus || ''
+      ).toUpperCase();
+
+      const payment = String(
+        booking.paymentStatus || ''
+      ).toUpperCase();
+
+      if (status === 'CONFIRMED') {
+        day.confirmed += 1;
+
+        if (payment === 'COMPLETED') {
+          day.revenue += Number(
+            booking.totalAmount ||
+            booking.amount ||
+            0
+          );
+        }
+      } else if (status === 'CANCELLED') {
+        day.cancelled += 1;
+      } else {
+        day.pending += 1;
+      }
+    });
+
+    return days;
+  }, [bookings]);
+
+  useEffect(() => {
+    if (!isLoggedIn || user?.role !== 'ADMIN') {
+      navigate('/');
+      return;
+    }
+
+    loadStats();
+
+    if (tab === 'booking') {
+      loadBookings();
+    } else if (tab === 'passport') {
+      loadPassportRequests();
+    } else if (tab === 'contact') {
+      loadContactMessages();
+    } else {
+      loadItems();
+    }
+  // loadItems intentionally depends on the current tab configuration.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, isLoggedIn, user, navigate]);
+
+  const loadStats = async () => {
+
+    setStatsLoading(true);
+
+    try {
+
+      const data = await adminService.getBookingStats();
+
+      setStats({
+        totalBookings: Number(data?.totalBookings || 0),
+        confirmedBookings: Number(data?.confirmedBookings || 0),
+        cancelledBookings: Number(data?.cancelledBookings || 0),
+        totalRevenue: Number(data?.totalRevenue || 0)
+      });
+
+    } catch (err) {
+
+      console.error('Unable to load dashboard statistics:', err);
+
+    } finally {
+
+      setStatsLoading(false);
+
+    }
+
+  };
+
+  const loadPassportRequests = async () => {
+    setPassportLoading(true);
+    setError('');
+
+    try {
+      const data = await adminService.getAllPassportRequests();
+      setPassportRequests(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Unable to load passport requests:', err);
+      setError(getErrorMessage(err) || 'Unable to load passport requests.');
+    } finally {
+      setPassportLoading(false);
+    }
+  };
+
+  const loadContactMessages = async () => {
+    setContactLoading(true);
+    setError('');
+
+    try {
+      const data = await adminService.getAllContactMessages();
+      setContactMessages(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Unable to load contact messages:', err);
+      setError(getErrorMessage(err) || 'Unable to load contact messages.');
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
+  const passportStats = {
+    total: passportRequests.length,
+    pending: passportRequests.filter(
+      (request) =>
+        String(request.status || 'PENDING').toUpperCase() === 'PENDING'
+    ).length,
+    underReview: passportRequests.filter(
+      (request) =>
+        String(request.status || '').toUpperCase() === 'UNDER_REVIEW'
+    ).length,
+    approved: passportRequests.filter(
+      (request) =>
+        String(request.status || '').toUpperCase() === 'APPROVED'
+    ).length,
+    completed: passportRequests.filter(
+      (request) =>
+        String(request.status || '').toUpperCase() === 'COMPLETED'
+    ).length
+  };
+
+  const filteredPassportRequests = passportRequests
+    .filter((request) => {
+      const search = passportSearch.trim().toLowerCase();
+
+      const matchesSearch =
+        !search ||
+        String(request.id || '').includes(search) ||
+        String(request.fullName || '').toLowerCase().includes(search) ||
+        String(request.email || '').toLowerCase().includes(search) ||
+        String(request.phone || '').toLowerCase().includes(search);
+
+      const matchesStatus =
+        !passportStatusFilter ||
+        String(request.status || '').toUpperCase() ===
+          passportStatusFilter.toUpperCase();
+
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (passportSort === 'OLDEST') {
+        return new Date(a.requestDate || 0) - new Date(b.requestDate || 0);
+      }
+
+      if (passportSort === 'NAME_ASC') {
+        return String(a.fullName || '').localeCompare(
+          String(b.fullName || '')
+        );
+      }
+
+      if (passportSort === 'NAME_DESC') {
+        return String(b.fullName || '').localeCompare(
+          String(a.fullName || '')
+        );
+      }
+
+      return new Date(b.requestDate || 0) - new Date(a.requestDate || 0);
+    });
+
+  const exportPassportRequests = () => {
+    if (filteredPassportRequests.length === 0) {
+      setMessage('No passport requests available to export.');
+      return;
+    }
+
+    const headers = [
+      'ID',
+      'Full Name',
+      'Email',
+      'Phone',
+      'Service Type',
+      'Date of Birth',
+      'Gender',
+      'Status',
+      'Request Date',
+      'Remarks'
+    ];
+
+    const escapeCSV = (value) => {
+      const stringValue = String(value ?? '');
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    };
+
+    const rows = filteredPassportRequests.map((request) => [
+      request.id,
+      request.fullName,
+      request.email,
+      request.phone,
+      request.serviceType,
+      request.dateOfBirth,
+      request.gender,
+      request.status,
+      request.requestDate,
+      request.remarks
+    ]);
+
+    const csvContent = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map((row) => row.map(escapeCSV).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], {
+      type: 'text/csv;charset=utf-8;'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = `passport-requests-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+
+    setMessage(
+      `${filteredPassportRequests.length} passport request(s) exported successfully.`
+    );
+  };
+
+  const passportDashboardStats = {
+    total: passportRequests.length,
+
+    pending: passportRequests.filter(
+      (request) =>
+        String(request.status || 'PENDING').toUpperCase() === 'PENDING'
+    ).length,
+
+    underReview: passportRequests.filter(
+      (request) =>
+        String(request.status || '').toUpperCase() === 'UNDER_REVIEW'
+    ).length,
+
+    approved: passportRequests.filter(
+      (request) =>
+        String(request.status || '').toUpperCase() === 'APPROVED'
+    ).length,
+
+    completed: passportRequests.filter(
+      (request) =>
+        String(request.status || '').toUpperCase() === 'COMPLETED'
+    ).length
+  };
+
+  const recentPassportRequests = [...passportRequests]
+    .sort(
+      (a, b) =>
+        new Date(b.requestDate || 0) -
+        new Date(a.requestDate || 0)
+    )
+    .slice(0, 5);
+
+  const filteredBookings = bookings.filter((booking) => {
+    const search = bookingSearch.trim().toLowerCase();
+
+    const customerName = String(
+      booking.user?.fullName || ''
+    ).toLowerCase();
+
+    const customerEmail = String(
+      booking.user?.email || ''
+    ).toLowerCase();
+
+    const bookingReference = String(
+      booking.bookingReference || ''
+    ).toLowerCase();
+
+    const matchesSearch =
+      !search ||
+      customerName.includes(search) ||
+      customerEmail.includes(search) ||
+      bookingReference.includes(search);
+
+    const matchesType =
+      !bookingTypeFilter ||
+      booking.bookingType === bookingTypeFilter;
+
+    const matchesBookingStatus =
+      !bookingStatusFilter ||
+      booking.bookingStatus === bookingStatusFilter;
+
+    const matchesPaymentStatus =
+      !paymentStatusFilter ||
+      booking.paymentStatus === paymentStatusFilter;
+
+  return (
+      matchesSearch &&
+      matchesType &&
+      matchesBookingStatus &&
+      matchesPaymentStatus
+    );
+  });
+
+  const loadBookings = async () => {
+    setBookingLoading(true);
+    setError('');
+
+    try {
+      const data = await adminService.getAllBookings();
+      setBookings(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(getErrorMessage(err) || 'Unable to load bookings.');
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  const updateRefundStatus = async (bookingId, refundStatus) => {
+    setError('');
+    setMessage('');
+
+    try {
+      await adminService.updateRefundStatus(bookingId, refundStatus);
+
+      setMessage('Refund status updated successfully.');
+
+      await loadBookings();
+    } catch (err) {
+      setError(getErrorMessage(err) || 'Unable to update refund status.');
+    }
+  };
+
+  async function loadItems() {
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await current.get();
+      setItems(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to load data.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const resetForm = () => {
+    setEditing(null);
+    setForm({ ...emptyForms[tab] });
+    setError('');
+  };
+
+  const startAdd = () => {
+    setEditing(null);
+    setForm({ ...emptyForms[tab] });
+    setMessage('');
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const startEdit = (item) => {
+    const next = { ...emptyForms[tab] };
+
+    Object.keys(next).forEach((key) => {
+      if (key === 'departureTime' || key === 'arrivalTime') {
+        next[key] = toInputDateTime(item[key]);
+      } else {
+        next[key] = item[key] ?? '';
+      }
+    });
+
+    setEditing(item.id);
+    setForm(next);
+    setMessage('');
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const payload = {
+        ...form,
+        price: Number(form.price),
+        availableSeats: Number(form.availableSeats),
+        departureTime: form.departureTime
+          ? `${form.departureTime}:00`
+          : '',
+        arrivalTime: form.arrivalTime
+          ? `${form.arrivalTime}:00`
+          : ''
+      };
+
+      if (editing) {
+        await current.update(editing, payload);
+        setMessage(`${current.singular} updated successfully.`);
+      } else {
+        await current.create(payload);
+        setMessage(`${current.singular} added successfully.`);
+      }
+
+      resetForm();
+      await loadItems();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        err.response?.data ||
+        `Unable to save ${current.singular.toLowerCase()}.`
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this ${current.singular.toLowerCase()}?`
+    );
+
+    if (!confirmed) return;
+
+    setError('');
+    setMessage('');
+
+    try {
+      await current.delete(id);
+      setMessage(`${current.singular} deleted successfully.`);
+      await loadItems();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        `Unable to delete ${current.singular.toLowerCase()}.`
+      );
+    }
+  };
+
+  const changeTab = (nextTab) => {
+    setTab(nextTab);
+    setEditing(null);
+
+    if (emptyForms[nextTab]) {
+      setForm({ ...emptyForms[nextTab] });
+    }
+
+    setMessage('');
+    setError('');
+  };
+
+  if (!isLoggedIn || user?.role !== 'ADMIN') {
+    return null;
+  }
+
+  return (
+    <div className="admin-page">
+      <div className="admin-container">
+
+        <div className="admin-topbar">
+          <button className="admin-back-btn" onClick={() => navigate('/')}>
+            <FaArrowLeft /> Back to Website
+          </button>
+
+          <div className="admin-heading">
+            <span className="admin-badge">ADMIN PANEL</span>
+            <h1>Rasika Tours & Travels</h1>
+            <p>Manage buses, trains and flights</p>
+          </div>
+
+          <div className="admin-user">
+            <strong>{user.fullName}</strong>
+            <span>Administrator</span>
+          </div>
+        </div>
+
+        <div className="admin-tabs">
+          <button
+            className={tab === 'dashboard' ? 'active' : ''}
+            onClick={() => changeTab('dashboard')}
+          >
+            📊 Dashboard
+          </button>
+
+          <button
+            className={tab === 'bus' ? 'active' : ''}
+            onClick={() => changeTab('bus')}
+          >
+            <FaBus /> Buses
+          </button>
+
+          <button
+            className={tab === 'train' ? 'active' : ''}
+            onClick={() => changeTab('train')}
+          >
+            <FaTrain /> Trains
+          </button>
+
+          <button
+            className={tab === 'flight' ? 'active' : ''}
+            onClick={() => changeTab('flight')}
+          >
+            <FaPlane /> Flights
+          </button>
+
+          <button
+            className={tab === 'booking' ? 'active' : ''}
+            onClick={() => changeTab('booking')}
+          >
+            <FaClipboardList /> Bookings
+          </button>
+
+          <button
+            className={tab === 'passport' ? 'active' : ''}
+            onClick={() => changeTab('passport')}
+          >
+            <FaPassport /> Passport Requests
+          </button>
+
+          <button
+            className={tab === 'contact' ? 'active' : ''}
+            onClick={() => changeTab('contact')}
+          >
+            📩 Contact Messages
+          </button>
+        </div>
+
+        {message && <div className="admin-alert success">{message}</div>}
+        {error && <div className="admin-alert error">{error}</div>}
+
+        {tab === 'dashboard' && (
+          <>
+        <section className="dashboard-stats">
+
+          <div className="stat-card">
+
+            <div className="stat-icon">📊</div>
+
+            <div>
+
+              <span>Total Bookings</span>
+
+              <h2>{statsLoading ? '...' : stats.totalBookings}</h2>
+
+            </div>
+
+          </div>
+
+          <div className="stat-card">
+
+            <div className="stat-icon">✅</div>
+
+            <div>
+
+              <span>Confirmed Bookings</span>
+
+              <h2>{statsLoading ? '...' : stats.confirmedBookings}</h2>
+
+            </div>
+
+          </div>
+
+          <div className="stat-card">
+
+            <div className="stat-icon">❌</div>
+
+            <div>
+
+              <span>Cancelled Bookings</span>
+
+              <h2>{statsLoading ? '...' : stats.cancelledBookings}</h2>
+
+            </div>
+
+          </div>
+
+          <div className="stat-card">
+
+            <div className="stat-icon">💰</div>
+
+            <div>
+
+              <span>Total Revenue</span>
+
+              <h2>
+
+                {statsLoading
+                  ? '...'
+                  : `₹${Number(stats.totalRevenue || 0).toLocaleString('en-IN')}`}
+
+              </h2>
+
+            </div>
+
+          </div>
+
+        
+          <div
+            className="stat-card passport-dashboard-card"
+            onClick={() => changeTab('passport')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="stat-icon">🛂</div>
+
+            <div>
+              <span>Passport Requests</span>
+
+              <h2>{passportLoading ? '...' : passportRequests.length}</h2>
+
+              <small>
+                {passportLoading
+                  ? 'Loading...'
+                  : `${passportRequests.filter(
+                      (request) =>
+                        String(request.status || 'PENDING')
+                          .toUpperCase() === 'PENDING'
+                    ).length} Pending`}
+              </small>
+            </div>
+          </div>
+
+</section>
+
+
+        <section className="passport-dashboard-section">
+
+          <div className="passport-dashboard-header">
+
+            <div>
+              <span className="analytics-label">Passport Services</span>
+              <h2>Passport Request Overview</h2>
+              <p>Monitor and manage customer passport service requests.</p>
+            </div>
+
+            <button
+              className="passport-dashboard-view-btn"
+              onClick={() => changeTab('passport')}
+            >
+              View All Requests
+            </button>
+
+          </div>
+
+          <div className="passport-status-summary">
+
+            <div className="passport-summary-item pending">
+              <span>⏳ Pending</span>
+              <strong>{passportDashboardStats.pending}</strong>
+            </div>
+
+            <div className="passport-summary-item review">
+              <span>🔍 Under Review</span>
+              <strong>{passportDashboardStats.underReview}</strong>
+            </div>
+
+            <div className="passport-summary-item approved">
+              <span>✅ Approved</span>
+              <strong>{passportDashboardStats.approved}</strong>
+            </div>
+
+            <div className="passport-summary-item completed">
+              <span>✔️ Completed</span>
+              <strong>{passportDashboardStats.completed}</strong>
+            </div>
+
+          </div>
+
+          <div className="recent-passport-card">
+
+            <div className="recent-passport-header">
+              <div>
+                <h3>Recent Passport Requests</h3>
+                <p>Latest customer applications</p>
+              </div>
+
+              <span className="recent-passport-total">
+                {passportDashboardStats.total} Total
+              </span>
+            </div>
+
+            {recentPassportRequests.length === 0 ? (
+              <div className="recent-passport-empty">
+                No passport requests yet.
+              </div>
+            ) : (
+              <div className="recent-passport-list">
+
+                {recentPassportRequests.map((request) => (
+                  <div
+                    className="recent-passport-item"
+                    key={request.id}
+                    onClick={() => changeTab('passport')}
+                  >
+
+                    <div className="recent-passport-user">
+
+                      <div className="recent-passport-avatar">
+                        {(request.fullName || '?')
+                          .charAt(0)
+                          .toUpperCase()}
+                      </div>
+
+                      <div>
+                        <strong>{request.fullName || 'Unknown Customer'}</strong>
+
+                        <small>
+                          {request.serviceType || 'Passport Service'}
+                        </small>
+                      </div>
+
+                    </div>
+
+                    <div className="recent-passport-meta">
+
+                      <span
+                        className={`recent-passport-status ${String(
+                          request.status || 'PENDING'
+                        ).toLowerCase()}`}
+                      >
+                        {String(
+                          request.status || 'PENDING'
+                        ).replaceAll('_', ' ')}
+                      </span>
+
+                      <small>
+                        #{request.id}
+                      </small>
+
+                    </div>
+
+                  </div>
+                ))}
+
+              </div>
+            )}
+
+          </div>
+
+        </section>
+
+        <section className="analytics-grid">
+
+          <div className="analytics-card revenue-card">
+
+            <div className="analytics-card-header">
+              <div>
+                <span className="analytics-label">Revenue Overview</span>
+                <h2>₹{Number(stats.totalRevenue || 0).toLocaleString('en-IN')}</h2>
+                <p>Total confirmed revenue</p>
+              </div>
+
+              <span className="analytics-period">Last 7 Days</span>
+            </div>
+
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={analyticsData}>
+                  <defs>
+                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#5b4fc7" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#5b4fc7" stopOpacity={0.02}/>
+                    </linearGradient>
+                  </defs>
+
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip
+                    formatter={(value) => [
+                      `₹${Number(value).toLocaleString('en-IN')}`,
+                      'Revenue'
+                    ]}
+                  />
+
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#5b4fc7"
+                    strokeWidth={3}
+                    fill="url(#revenueGradient)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+          </div>
+
+
+          <div className="analytics-card bookings-chart-card">
+
+            <div className="analytics-card-header">
+              <div>
+                <span className="analytics-label">Bookings Overview</span>
+                <h2>{stats.totalBookings}</h2>
+                <p>Total customer bookings</p>
+              </div>
+
+              <span className="analytics-period">Last 7 Days</span>
+            </div>
+
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={analyticsData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+
+                  <Bar
+                    dataKey="confirmed"
+                    name="Confirmed"
+                    stackId="bookings"
+                    fill="#16a34a"
+                    radius={[5, 5, 0, 0]}
+                  />
+
+                  <Bar
+                    dataKey="cancelled"
+                    name="Cancelled"
+                    stackId="bookings"
+                    fill="#ef4444"
+                  />
+
+                  <Bar
+                    dataKey="pending"
+                    name="Pending"
+                    stackId="bookings"
+                    fill="#f59e0b"
+                    radius={[5, 5, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+          </div>
+
+        </section>
+
+          </>
+        )}
+
+        <div className="admin-content" style={{ display: tab === "dashboard" ? "none" : "block" }}>
+          {tab === 'booking' ? (
+            <section className="admin-list-card booking-admin-card">
+              <div className="list-header booking-list-header">
+                <div>
+                  <h2>Booking Management</h2>
+                  <p>{filteredBookings.length} of {bookings.length} booking{bookings.length !== 1 ? 's' : ''}</p>
+                </div>
+
+                <button
+                  className="add-small-btn"
+                  onClick={() => loadBookings()}
+                >
+                  Refresh
+                </button>
+              </div>
+
+              <div className="booking-filters">
+
+                <input
+                  type="text"
+                  placeholder="Search name, email or reference..."
+                  value={bookingSearch}
+                  onChange={(e) => setBookingSearch(e.target.value)}
+                />
+
+                <select
+                  value={bookingTypeFilter}
+                  onChange={(e) => setBookingTypeFilter(e.target.value)}
+                >
+                  <option value="">All Types</option>
+                  <option value="BUS">Bus</option>
+                  <option value="TRAIN">Train</option>
+                  <option value="FLIGHT">Flight</option>
+                </select>
+
+                <select
+                  value={bookingStatusFilter}
+                  onChange={(e) => setBookingStatusFilter(e.target.value)}
+                >
+                  <option value="">All Booking Status</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                  <option value="PENDING">Pending</option>
+                </select>
+
+                <select
+                  value={paymentStatusFilter}
+                  onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                >
+                  <option value="">All Payments</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="REFUND_PENDING">Refund Pending</option>
+                  <option value="REFUND_PROCESSING">Refund Processing</option>
+                  <option value="REFUNDED">Refunded</option>
+                </select>
+
+                <button
+                  className="clear-filters-btn"
+                  onClick={() => {
+                    setBookingSearch('');
+                    setBookingTypeFilter('');
+                    setBookingStatusFilter('');
+                    setPaymentStatusFilter('');
+                  }}
+                >
+                  Clear
+                </button>
+
+              </div>
+
+              {bookingLoading ? (
+                <div className="admin-loading">Loading bookings...</div>
+              ) : filteredBookings.length === 0 ? (
+                <div className="admin-empty">
+                  <div className="empty-icon">
+                    <FaClipboardList />
+                  </div>
+                  <h3>No bookings found</h3>
+                  <p>Customer bookings will appear here.</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="admin-table booking-admin-table">
+                    <thead>
+                      <tr>
+                        <th>Reference</th>
+                        <th>Customer</th>
+                        <th>Type</th>
+                        <th>Passengers</th>
+                        <th>Amount</th>
+                        <th>Booking Status</th>
+                        <th>Payment</th>
+                        <th>Refund Status</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {filteredBookings.map((booking) => (
+                        <tr key={booking.id}>
+                          <td>
+                            <strong>{booking.bookingReference}</strong>
+                          </td>
+
+                          <td>
+                            {booking.user?.fullName || booking.user?.email || 'Customer'}
+                          </td>
+
+                          <td>
+                            <strong>{booking.bookingType}</strong>
+                          </td>
+
+                          <td>{booking.numberOfPassengers}</td>
+
+                          <td>
+                            ₹{Number(
+                              booking.totalAmount || booking.amount || 0
+                            ).toLocaleString('en-IN')}
+                          </td>
+
+                          <td>
+                            <span className={`status ${
+                              booking.bookingStatus === 'CANCELLED'
+                                ? 'inactive'
+                                : 'active'
+                            }`}>
+                              {booking.bookingStatus || 'PENDING'}
+                            </span>
+                          </td>
+
+                          <td>
+                            {booking.paymentStatus || 'PENDING'}
+                          </td>
+
+                          <td>
+                            {booking.bookingStatus === 'CANCELLED' ? (
+                              <select
+                                value={booking.refundStatus || (
+                                  booking.paymentStatus === 'REFUND_PENDING'
+                                    ? 'PENDING'
+                                    : 'NOT_APPLICABLE'
+                                )}
+                                onChange={(e) =>
+                                  updateRefundStatus(
+                                    booking.id,
+                                    e.target.value
+                                  )
+                                }
+                              >
+                                <option value="PENDING">Pending</option>
+                                <option value="UNDER_REVIEW">Under Review</option>
+                                <option value="COMPLETED">Completed / Refunded</option>
+                                <option value="REJECTED">Rejected</option>
+                              </select>
+                            ) : (
+                              <span>Not Applicable</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          ) : tab === 'contact' ? (
+
+            <section className="admin-list-card booking-admin-card">
+
+              <div className="list-header booking-list-header">
+
+                <div>
+
+                  <h2>Contact Messages</h2>
+
+                  <p>
+                    Messages submitted by customers through the Contact Us page.
+                  </p>
+
+                </div>
+
+                <button
+                  className="add-small-btn"
+                  onClick={loadContactMessages}
+                  disabled={contactLoading}
+                >
+                  {contactLoading ? 'Refreshing...' : 'Refresh'}
+                </button>
+
+              </div>
+
+              {contactLoading ? (
+
+                <div className="admin-loading">
+                  Loading contact messages...
+                </div>
+
+              ) : contactMessages.length === 0 ? (
+
+                <div className="admin-empty">
+
+                  <div className="empty-icon">📩</div>
+
+                  <h3>No contact messages found</h3>
+
+                  <p>Customer messages will appear here.</p>
+
+                </div>
+
+              ) : (
+
+                <div className="table-wrapper">
+
+                  <table className="admin-table booking-admin-table">
+
+                    <thead>
+
+                      <tr>
+
+                        <th>ID</th>
+
+                        <th>Name</th>
+
+                        <th>Phone</th>
+
+                        <th>Email</th>
+
+                        <th>Subject</th>
+
+                        
+                                <th>Status</th>
+
+                        
+                                <th>Message</th>
+
+                        <th>Date</th>
+
+                      </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                      {contactMessages.map((contact) => (
+
+                        <tr key={contact.id}>
+
+                          <td>
+                            <strong>#{contact.id}</strong>
+                          </td>
+
+                          <td>
+                            <strong>{contact.fullName || '-'}</strong>
+                          </td>
+
+                          <td>{contact.phone || '-'}</td>
+
+                          <td>{contact.email || '-'}</td>
+
+                          <td>{contact.subject || '-'}</td>
+
+                          <td>
+                            <button
+                              className="add-small-btn"
+                              onClick={async () => {
+                                try {
+                                  let updatedContact = contact;
+
+                                  if (
+                                    String(
+                                      contact.status || 'NEW'
+                                    ).toUpperCase() === 'NEW'
+                                  ) {
+                                    updatedContact =
+                                      await adminService.markContactMessageAsRead(
+                                        contact.id
+                                      );
+
+                                    setContactMessages((prev) =>
+                                      prev.map((item) =>
+                                        item.id === updatedContact.id
+                                          ? updatedContact
+                                          : item
+                                      )
+                                    );
+                                  }
+
+                                  setSelectedContact(updatedContact);
+
+                                  setContactReply(
+                                    updatedContact.adminReply || ''
+                                  );
+
+                                } catch (err) {
+
+                                  setError(
+                                    getErrorMessage(err) ||
+                                    'Unable to open contact message.'
+                                  );
+
+                                }
+                              }}
+                            >
+                              View Message
+                            </button>
+                          </td>
+
+                          <td>
+                            {contact.createdAt
+                              ? String(contact.createdAt)
+                                  .replace('T', ' ')
+                                  .slice(0, 16)
+                              : '-'}
+                          </td>
+
+                        </tr>
+
+                      ))}
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              )}
+
+            </section>
+
+          ) : tab === 'passport' ? (
+            <section className="admin-list-card booking-admin-card">
+              <div className="list-header booking-list-header">
+                <div>
+                  <h2>Passport Request Management</h2>
+                  <p>
+                    Showing {filteredPassportRequests.length} of {passportRequests.length}
+                    {' '}passport request{passportRequests.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+
+                <div className="passport-admin-filters">
+                  <button
+                    className="add-small-btn passport-refresh-btn"
+                    onClick={loadPassportRequests}
+                    disabled={passportLoading}
+                  >
+                    {passportLoading ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, phone or ID..."
+                    value={passportSearch}
+                    onChange={(e) => setPassportSearch(e.target.value)}
+                  />
+
+                  <select
+                    value={passportStatusFilter}
+                    onChange={(e) => setPassportStatusFilter(e.target.value)}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="UNDER_REVIEW">Under Review</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    className="passport-export-btn"
+                    onClick={exportPassportRequests}
+                    disabled={filteredPassportRequests.length === 0}
+                  >
+                    Export CSV
+                  </button>
+
+                  <select
+                    value={passportSort}
+                    onChange={(e) => setPassportSort(e.target.value)}
+                  >
+                    <option value="NEWEST">Newest First</option>
+                    <option value="OLDEST">Oldest First</option>
+                    <option value="NAME_ASC">Name A-Z</option>
+                    <option value="NAME_DESC">Name Z-A</option>
+                  </select>
+
+                  
+                </div>
+              </div>
+
+              <div className="passport-stats-grid">
+
+                <div className="passport-stat-card total">
+                  <div className="passport-stat-icon">🛂</div>
+                  <div>
+                    <span>Total Requests</span>
+                    <strong>{passportStats.total}</strong>
+                  </div>
+                </div>
+
+                <div className="passport-stat-card pending">
+                  <div className="passport-stat-icon">⏳</div>
+                  <div>
+                    <span>Pending</span>
+                    <strong>{passportStats.pending}</strong>
+                  </div>
+                </div>
+
+                <div className="passport-stat-card review">
+                  <div className="passport-stat-icon">🔎</div>
+                  <div>
+                    <span>Under Review</span>
+                    <strong>{passportStats.underReview}</strong>
+                  </div>
+                </div>
+
+                <div className="passport-stat-card approved">
+                  <div className="passport-stat-icon">👍</div>
+                  <div>
+                    <span>Approved</span>
+                    <strong>{passportStats.approved}</strong>
+                  </div>
+                </div>
+
+                <div className="passport-stat-card completed">
+                  <div className="passport-stat-icon">✅</div>
+                  <div>
+                    <span>Completed</span>
+                    <strong>{passportStats.completed}</strong>
+                  </div>
+                </div>
+
+              </div>
+
+              {passportLoading ? (
+                <div className="admin-loading">
+                  Loading passport requests...
+                </div>
+              ) : passportRequests.length === 0 ? (
+                <div className="admin-empty">
+                  <div className="empty-icon">🛂</div>
+                  <h3>No passport requests found</h3>
+                  <p>Customer passport requests will appear here.</p>
+                </div>
+              ) : filteredPassportRequests.length === 0 ? (
+                <div className="admin-empty passport-no-results">
+                  <div className="empty-icon">🔍</div>
+                  <h3>No matching passport requests</h3>
+                  <p>
+                    Try changing your search text or status filter.
+                  </p>
+                  <button
+                    className="add-small-btn"
+                    onClick={() => {
+                      setPassportSearch('');
+                      setPassportStatusFilter('');
+                    }}
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="admin-table booking-admin-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Service</th>
+                        <th>Date of Birth</th>
+                        <th>Gender</th>
+                        <th>Phone</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                                <th>Actions</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {filteredPassportRequests.map((request) => (
+                        <tr key={request.id}>
+                          <td>
+                            <strong>#{request.id}</strong>
+                          </td>
+
+                          <td>
+                            <strong>{request.fullName}</strong>
+                            <br />
+                            <small>{request.email}</small>
+                          </td>
+
+                          <td>{request.serviceType}</td>
+
+                          <td>{request.dateOfBirth}</td>
+
+                          <td>{request.gender}</td>
+
+                          <td>{request.phone}</td>
+
+                          <td>
+                            {request.requestDate
+                              ? request.requestDate
+                                  .replace('T', ' ')
+                                  .slice(0, 16)
+                              : '-'}
+                          </td>
+
+                          <td>
+                            <div className="passport-admin-actions">
+                              <select
+                                value={
+                                  passportStatusDrafts[request.id] ||
+                                  request.status ||
+                                  'PENDING'
+                                }
+                                onChange={(e) =>
+                                  setPassportStatusDrafts((prev) => ({
+                                    ...prev,
+                                    [request.id]: e.target.value
+                                  }))
+                                }
+                              >
+                              <option value="PENDING">Pending</option>
+                              <option value="UNDER_REVIEW">Under Review</option>
+                              <option value="APPROVED">Approved</option>
+                              <option value="REJECTED">Rejected</option>
+                              <option value="COMPLETED">Completed</option>
+                              </select>
+
+                              <textarea
+                                className="passport-admin-remarks"
+                                placeholder="Add admin remarks..."
+                                value={
+                                  passportRemarksDrafts[request.id] !== undefined
+                                    ? passportRemarksDrafts[request.id]
+                                    : request.remarks || ''
+                                }
+                                onChange={(e) =>
+                                  setPassportRemarksDrafts((prev) => ({
+                                    ...prev,
+                                    [request.id]: e.target.value
+                                  }))
+                                }
+                              />
+
+                              <button
+                                className="passport-save-btn"
+                                onClick={async () => {
+                                  const status =
+                                    passportStatusDrafts[request.id] ||
+                                    request.status ||
+                                    'PENDING';
+
+                                  const remarks =
+                                    passportRemarksDrafts[request.id] !== undefined
+                                      ? passportRemarksDrafts[request.id]
+                                      : request.remarks || '';
+
+                                  try {
+                                    await adminService.updatePassportStatus(
+                                      request.id,
+                                      status,
+                                      remarks
+                                    );
+
+                                    setMessage(
+                                      'Passport request status saved successfully.'
+                                    );
+
+                                    setPassportStatusDrafts((prev) => {
+                                      const updated = { ...prev };
+                                      delete updated[request.id];
+                                      return updated;
+                                    });
+
+                                    setPassportRemarksDrafts((prev) => {
+                                      const updated = { ...prev };
+                                      delete updated[request.id];
+                                      return updated;
+                                    });
+
+                                    await loadPassportRequests();
+                                  } catch (err) {
+                                    setError(
+                                      getErrorMessage(err) ||
+                                      'Unable to save passport request status.'
+                                    );
+                                  }
+                                }}
+                              >
+                                Save Status
+                              </button>
+
+                            </div>
+                          </td>
+                          <td>
+                            <button
+                              className="passport-view-btn"
+                              onClick={() => setSelectedPassport(request)}
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          ) : (
+            <>
+          <section className="admin-form-card">
+            <div className="section-title">
+              <div>
+                <span className="section-icon">{current.icon}</span>
+                <div>
+                  <h2>{editing ? `Edit ${current.singular}` : `Add New ${current.singular}`}</h2>
+                  <p>
+                    {editing
+                      ? `Update the selected ${current.singular.toLowerCase()} details`
+                      : `Enter details for the new ${current.singular.toLowerCase()}`}
+                  </p>
+                </div>
+              </div>
+
+              {editing && (
+                <button className="cancel-btn" onClick={resetForm}>
+                  <FaTimes /> Cancel
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div className="form-grid">
+                {current.fields.map(([name, label, type]) => (
+                  <div className="form-group" key={name}>
+                    <label htmlFor={name}>{label}</label>
+
+                    <input
+                      id={name}
+                      name={name}
+                      type={type}
+                      value={form[name]}
+                      onChange={handleChange}
+                      min={type === 'number' ? '0' : undefined}
+                      step={name === 'price' ? '0.01' : undefined}
+                      required
+                    />
+                  </div>
+                ))}
+
+                <div className="form-group active-field">
+                  <label htmlFor="active">Status</label>
+                  <label className="switch-row">
+                    <input
+                      id="active"
+                      name="active"
+                      type="checkbox"
+                      checked={Boolean(form.active)}
+                      onChange={handleChange}
+                    />
+                    <span className="switch"></span>
+                    <span>{form.active ? 'Active' : 'Inactive'}</span>
+                  </label>
+                </div>
+              </div>
+
+              <button className="save-btn" type="submit" disabled={saving}>
+                {saving ? (
+                  'Saving...'
+                ) : editing ? (
+                  <>
+                    <FaSave /> Update {current.singular}
+                  </>
+                ) : (
+                  <>
+                    <FaPlus /> Add {current.singular}
+                  </>
+                )}
+              </button>
+            </form>
+          </section>
+
+          <section className="admin-list-card">
+            <div className="list-header">
+              <div>
+                <h2>{current.title}</h2>
+                <p>{items.length} active record{items.length !== 1 ? 's' : ''}</p>
+              </div>
+
+              <button className="add-small-btn" onClick={startAdd}>
+                <FaPlus /> Add New
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="admin-loading">Loading {current.singular.toLowerCase()}s...</div>
+            ) : items.length === 0 ? (
+              <div className="admin-empty">
+                <div className="empty-icon">{current.icon}</div>
+                <h3>No records found</h3>
+                <p>Add your first {current.singular.toLowerCase()} using the form above.</p>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Number</th>
+                      <th>Name / Operator</th>
+                      <th>Route</th>
+                      <th>Departure</th>
+                      <th>Arrival</th>
+                      <th>Price</th>
+                      <th>Seats</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <strong>
+                            {item.busNumber || item.trainNumber || item.flightNumber}
+                          </strong>
+                        </td>
+
+                        <td>
+                          {item.operator || item.trainName || item.airline}
+                        </td>
+
+                        <td>
+                          {item.fromCity || item.fromStation}
+                          <span className="route-arrow"> → </span>
+                          {item.toCity || item.toStation}
+                        </td>
+
+                        <td>{item.departureTime?.replace('T', ' ')}</td>
+                        <td>{item.arrivalTime?.replace('T', ' ')}</td>
+
+                        <td>₹{Number(item.price || 0).toLocaleString('en-IN')}</td>
+
+                        <td>{item.availableSeats}</td>
+
+                        <td>
+                          <span className={`status ${item.active ? 'active' : 'inactive'}`}>
+                            {item.active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="edit-btn"
+                              title="Edit"
+                              onClick={() => startEdit(item)}
+                            >
+                              <FaEdit />
+                            </button>
+
+                            <button
+                              className="delete-btn"
+                              title="Delete"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+            </>
+          )}
+
+        </div>
+      </div>
+      {selectedPassport && (
+        <div
+          className="passport-modal-overlay"
+          onClick={() => setSelectedPassport(null)}
+        >
+          <div
+            className="passport-details-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="passport-modal-header">
+              <div>
+                <span className="passport-modal-eyebrow">
+                  PASSPORT REQUEST
+                </span>
+                <h2>
+                  Request #{selectedPassport.id}
+                </h2>
+                <p>
+                  Complete customer request information
+                </p>
+              </div>
+
+              <button
+                className="passport-modal-close"
+                onClick={() => setSelectedPassport(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="passport-modal-status">
+              <span>Status</span>
+              <strong>
+                {String(selectedPassport.status || 'PENDING')
+                  .replaceAll('_', ' ')}
+              </strong>
+            </div>
+
+            <div className="passport-modal-grid">
+
+              <div className="passport-modal-item">
+                <span>Full Name</span>
+                <strong>
+                  {selectedPassport.fullName || 'Not available'}
+                </strong>
+              </div>
+
+              <div className="passport-modal-item">
+                <span>Email Address</span>
+                <strong>
+                  {selectedPassport.email || 'Not available'}
+                </strong>
+              </div>
+
+              <div className="passport-modal-item">
+                <span>Phone Number</span>
+                <strong>
+                  {selectedPassport.phone || 'Not available'}
+                </strong>
+              </div>
+
+              <div className="passport-modal-item">
+                <span>Service Type</span>
+                <strong>
+                  {selectedPassport.serviceType || 'Not available'}
+                </strong>
+              </div>
+
+              <div className="passport-modal-item">
+                <span>Date of Birth</span>
+                <strong>
+                  {selectedPassport.dateOfBirth || 'Not available'}
+                </strong>
+              </div>
+
+              <div className="passport-modal-item">
+                <span>Gender</span>
+                <strong>
+                  {selectedPassport.gender || 'Not available'}
+                </strong>
+              </div>
+
+              <div className="passport-modal-item">
+                <span>Request Date</span>
+                <strong>
+                  {selectedPassport.requestDate
+                    ? selectedPassport.requestDate
+                        .replace('T', ' ')
+                        .slice(0, 16)
+                    : 'Not available'}
+                </strong>
+              </div>
+
+              {selectedPassport.existingPassportNumber && (
+                <div className="passport-modal-item">
+                  <span>Existing Passport Number</span>
+                  <strong>
+                    {selectedPassport.existingPassportNumber}
+                  </strong>
+                </div>
+              )}
+
+              {selectedPassport.completionDate && (
+                <div className="passport-modal-item">
+                  <span>Completion Date</span>
+                  <strong>
+                    {selectedPassport.completionDate
+                      .replace('T', ' ')
+                      .slice(0, 16)}
+                  </strong>
+                </div>
+              )}
+
+            </div>
+
+            {selectedPassport.remarks && (
+              <div className="passport-modal-remarks">
+                <span>Admin Remarks</span>
+                <p>{selectedPassport.remarks}</p>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+      {selectedContact && (
+        <div
+          className="passport-modal-overlay"
+          onClick={() => setSelectedContact(null)}
+        >
+          <div
+            className="contact-message-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="contact-message-header">
+              <div>
+                <span className="contact-message-badge">
+                  CUSTOMER INQUIRY
+                </span>
+
+                <h2>{selectedContact.subject || 'Customer Message'}</h2>
+
+                <p>
+                  Message #{selectedContact.id} • Customer support request
+                </p>
+              </div>
+
+              <button
+                className="contact-message-close"
+                onClick={() => setSelectedContact(null)}
+                aria-label="Close message"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="contact-message-body">
+              <div className="contact-customer-card">
+
+                <div className="contact-info-box">
+                  <span>Customer Name</span>
+                  <strong>
+                    {selectedContact.fullName || 'Not available'}
+                  </strong>
+                </div>
+
+                <div className="contact-info-box">
+                  <span>Phone Number</span>
+                  <strong>
+                    {selectedContact.phone || 'Not available'}
+                  </strong>
+                </div>
+
+                <div className="contact-info-box">
+                  <span>Email Address</span>
+                  <strong>
+                    {selectedContact.email || 'Not available'}
+                  </strong>
+                </div>
+
+                <div className="contact-info-box">
+                  <span>Received On</span>
+                  <strong>
+                    {selectedContact.createdAt
+                      ? String(selectedContact.createdAt)
+                          .replace('T', ' ')
+                          .slice(0, 16)
+                      : 'Not available'}
+                  </strong>
+                </div>
+
+              </div>
+
+              <div className="contact-message-content">
+
+                <div className="contact-message-label">
+                  Customer Message
+                </div>
+
+                <div className="contact-message-text">
+                  {selectedContact.message || 'No message provided'}
+                </div>
+
+              </div>
+            </div>
+
+            <div className="contact-reply-section">
+
+              <div className="contact-reply-heading">
+
+                <div>
+
+                  <span>ADMIN RESPONSE CENTER</span>
+
+                  <h3>Respond to Customer</h3>
+
+                </div>
+
+                {selectedContact.adminReply && (
+
+                  <span className="contact-replied-indicator">
+
+                    ✓ RESPONSE SENT
+
+                  </span>
+
+                )}
+
+              </div>
+
+              {selectedContact.adminReply && (
+
+                <div className="contact-existing-reply">
+
+                  <div className="contact-existing-reply-label">
+
+                    PREVIOUS RESPONSE
+
+                  </div>
+
+                  <div className="contact-existing-reply-text">
+
+                    {selectedContact.adminReply}
+
+                  </div>
+
+                  {selectedContact.repliedAt && (
+
+                    <small>
+
+                      Response sent on{' '}
+
+                      {String(selectedContact.repliedAt)
+
+                        .replace('T', ' ')
+
+                        .slice(0, 16)}
+
+                    </small>
+
+                  )}
+
+                </div>
+
+              )}
+
+              <textarea
+
+                className="contact-reply-textarea"
+
+                placeholder="Write your reply to the customer..."
+
+                value={contactReply}
+
+                onChange={(e) => setContactReply(e.target.value)}
+
+                rows={5}
+
+              />
+
+              <div className="contact-reply-actions">
+
+                <button
+
+                  className="contact-close-btn"
+
+                  onClick={() => setSelectedContact(null)}
+
+                  disabled={contactReplyLoading}
+
+                >
+
+                  Close
+
+                </button>
+
+                <button
+
+                  className="contact-send-reply-btn"
+
+                  disabled={
+
+                    contactReplyLoading ||
+
+                    !contactReply.trim()
+
+                  }
+
+                  onClick={async () => {
+
+                    try {
+
+                      setContactReplyLoading(true);
+
+                      setError('');
+
+                      const updated =
+
+                        await adminService.replyToContactMessage(
+
+                          selectedContact.id,
+
+                          contactReply.trim()
+
+                        );
+
+                      setSelectedContact(updated);
+
+                      setContactMessages((prev) =>
+
+                        prev.map((item) =>
+
+                          item.id === updated.id
+
+                            ? updated
+
+                            : item
+
+                        )
+
+                      );
+
+                      setContactReply(
+
+                        updated.adminReply || ''
+
+                      );
+
+                      setMessage(
+
+                        selectedContact.adminReply
+
+                          ? 'Reply updated successfully.'
+
+                          : 'Reply sent successfully.'
+
+                      );
+
+                    } catch (err) {
+
+                      setError(
+
+                        getErrorMessage(err) ||
+
+                        'Unable to send reply.'
+
+                      );
+
+                    } finally {
+
+                      setContactReplyLoading(false);
+
+                    }
+
+                  }}
+
+                >
+
+                  {contactReplyLoading
+
+                    ? 'Sending Response...'
+
+                    : selectedContact.adminReply
+
+                    ? 'Update Response'
+
+                    : 'Send Response'}
+
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+
+export default AdminDashboard;

@@ -1,0 +1,283 @@
+.passport-page {
+  min-height: 100vh;
+  padding: 42px 20px 80px;
+  background: #f6f8fc;
+  color: #172033;
+}
+
+.passport-page > section,
+.passport-page > div {
+  width: min(1100px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.passport-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 34px;
+  margin-bottom: 28px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #172033, #263b63);
+  color: white;
+}
+
+.passport-hero-icon {
+  width: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 20px;
+  background: #2563eb;
+  font-size: 30px;
+}
+
+.passport-hero span {
+  display: block;
+  margin-bottom: 8px;
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.passport-hero h1 {
+  margin: 0 0 8px;
+  font-size: clamp(28px, 4vw, 40px);
+}
+
+.passport-hero p {
+  margin: 0;
+  color: #d5def0;
+}
+
+.passport-success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-weight: 700;
+}
+
+.passport-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.passport-info,
+.passport-form-card {
+  background: white;
+  border: 1px solid #e5eaf2;
+  border-radius: 20px;
+  box-shadow: 0 12px 35px rgba(20, 30, 50, 0.06);
+}
+
+.passport-info {
+  padding: 28px;
+}
+
+.passport-info h2 {
+  margin: 0 0 26px;
+  font-size: 22px;
+}
+
+.passport-step {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.passport-step:last-child {
+  margin-bottom: 0;
+}
+
+.passport-step > span {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.passport-step h3 {
+  margin: 2px 0 6px;
+  font-size: 15px;
+}
+
+.passport-step p {
+  margin: 0;
+  color: #7a8599;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.passport-form-card {
+  padding: 32px;
+}
+
+.passport-form-heading {
+  margin-bottom: 26px;
+}
+
+.passport-form-heading h2 {
+  margin: 0 0 7px;
+  font-size: 26px;
+}
+
+.passport-form-heading p {
+  margin: 0;
+  color: #7a8599;
+}
+
+.passport-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.passport-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.passport-field.full {
+  grid-column: span 2;
+}
+
+.passport-field label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #526076;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.passport-field label svg {
+  color: #2563eb;
+}
+
+.passport-field input,
+.passport-field select,
+.passport-field textarea {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid #dce3ee;
+  border-radius: 10px;
+  background: #fbfcfe;
+  color: #172033;
+  font-size: 14px;
+  box-sizing: border-box;
+  outline: none;
+  transition: 0.2s;
+}
+
+.passport-field textarea {
+  resize: vertical;
+}
+
+.passport-field input:focus,
+.passport-field select:focus,
+.passport-field textarea:focus {
+  border-color: #2563eb;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.passport-submit {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 14px;
+  margin-top: 6px;
+  border: none;
+  border-radius: 11px;
+  background: #2563eb;
+  color: white;
+  font-size: 15px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.passport-submit:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 850px) {
+  .passport-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .passport-info {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+
+  .passport-info h2 {
+    grid-column: span 3;
+    margin-bottom: 5px;
+  }
+}
+
+@media (max-width: 600px) {
+  .passport-page {
+    padding: 25px 14px 60px;
+  }
+
+  .passport-hero {
+    padding: 24px;
+  }
+
+  .passport-hero-icon {
+    width: 58px;
+    height: 58px;
+    font-size: 24px;
+  }
+
+  .passport-info {
+    display: block;
+  }
+
+  .passport-info h2 {
+    margin-bottom: 24px;
+  }
+
+  .passport-step {
+    margin-bottom: 20px;
+  }
+
+  .passport-form-card {
+    padding: 22px;
+  }
+
+  .passport-form {
+    grid-template-columns: 1fr;
+  }
+
+  .passport-field.full,
+  .passport-submit {
+    grid-column: auto;
+  }
+}

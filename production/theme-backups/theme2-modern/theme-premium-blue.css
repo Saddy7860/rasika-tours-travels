@@ -1,0 +1,313 @@
+/* =========================================
+   RASIKA TOURS & TRAVELS
+   THEME 1 — PREMIUM BLUE TRAVEL
+========================================= */
+
+:root {
+  --theme-primary: #0b5cff;
+  --theme-primary-dark: #0847c7;
+  --theme-primary-light: #eaf1ff;
+  --theme-secondary: #00a8ff;
+  --theme-dark: #07162d;
+  --theme-text: #162033;
+  --theme-muted: #667085;
+  --theme-bg: #f5f8fc;
+  --theme-white: #ffffff;
+  --theme-border: #e4eaf2;
+  --theme-success: #16a34a;
+  --theme-danger: #dc2626;
+
+  --theme-radius-sm: 10px;
+  --theme-radius: 16px;
+  --theme-radius-lg: 24px;
+
+  --theme-shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.06);
+  --theme-shadow: 0 12px 35px rgba(15, 23, 42, 0.10);
+  --theme-shadow-lg: 0 22px 60px rgba(11, 92, 255, 0.16);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background:
+    radial-gradient(circle at top right, rgba(11, 92, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #f4f7fb 100%);
+  color: var(--theme-text);
+}
+
+/* -----------------------------------------
+   GLOBAL CARDS
+----------------------------------------- */
+
+.card,
+.dashboard-card,
+.booking-card,
+.search-card,
+.passport-card,
+.admin-card,
+.stat-card,
+.info-card {
+  background: rgba(255,255,255,0.96);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--theme-radius);
+  box-shadow: var(--theme-shadow-sm);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.card:hover,
+.booking-card:hover,
+.search-card:hover,
+.passport-card:hover,
+.info-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(11,92,255,0.25);
+  box-shadow: var(--theme-shadow);
+}
+
+/* -----------------------------------------
+   BUTTONS
+----------------------------------------- */
+
+button,
+.btn {
+  border-radius: 10px;
+  font-weight: 600;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
+}
+
+button:hover,
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+button:active,
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary,
+.primary-btn,
+.submit-btn,
+.search-btn,
+.book-btn,
+.login-btn,
+.register-btn {
+  background: linear-gradient(135deg, #0b5cff, #008cff) !important;
+  border: none !important;
+  box-shadow: 0 8px 20px rgba(11,92,255,0.22);
+}
+
+.btn-primary:hover,
+.primary-btn:hover,
+.submit-btn:hover,
+.search-btn:hover,
+.book-btn:hover,
+.login-btn:hover,
+.register-btn:hover {
+  box-shadow: 0 12px 28px rgba(11,92,255,0.32);
+}
+
+/* -----------------------------------------
+   INPUTS
+----------------------------------------- */
+
+input,
+select,
+textarea {
+  border-radius: 10px !important;
+  border: 1px solid #d9e1ec !important;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--theme-primary) !important;
+  box-shadow: 0 0 0 4px rgba(11,92,255,0.10) !important;
+  outline: none !important;
+}
+
+/* -----------------------------------------
+   HEADINGS
+----------------------------------------- */
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--theme-dark);
+  letter-spacing: -0.02em;
+}
+
+/* -----------------------------------------
+   HEADER
+----------------------------------------- */
+
+header,
+.header {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(11,92,255,0.08);
+}
+
+.header a {
+  transition: color 0.2s ease;
+}
+
+.header a:hover {
+  color: var(--theme-primary) !important;
+}
+
+/* -----------------------------------------
+   HERO / HOME
+----------------------------------------- */
+
+.hero,
+.home-hero,
+.hero-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::after,
+.home-hero::after,
+.hero-section::after {
+  content: "";
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: rgba(0,140,255,0.12);
+  filter: blur(80px);
+  top: -180px;
+  right: -120px;
+  pointer-events: none;
+}
+
+/* -----------------------------------------
+   TABLES
+----------------------------------------- */
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+thead {
+  background: #f2f6fc;
+}
+
+th {
+  color: #334155;
+  font-weight: 700;
+}
+
+tr {
+  transition: background 0.2s ease;
+}
+
+tbody tr:hover {
+  background: #f7faff;
+}
+
+/* -----------------------------------------
+   STATUS
+----------------------------------------- */
+
+.status-confirmed,
+.status-completed,
+.status-approved {
+  color: #15803d;
+}
+
+.status-pending {
+  color: #b45309;
+}
+
+.status-cancelled,
+.status-rejected {
+  color: #dc2626;
+}
+
+/* -----------------------------------------
+   DASHBOARDS
+----------------------------------------- */
+
+.admin-dashboard,
+.customer-dashboard {
+  background:
+    radial-gradient(circle at top left, rgba(11,92,255,0.05), transparent 30%);
+}
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 100%;
+  left: 0;
+  top: 0;
+  background: linear-gradient(
+    180deg,
+    #0b5cff,
+    #00a8ff
+  );
+}
+
+/* -----------------------------------------
+   SCROLLBAR
+----------------------------------------- */
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #eef3f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b7c7df;
+  border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0b5cff;
+}
+
+/* -----------------------------------------
+   RESPONSIVE
+----------------------------------------- */
+
+@media (max-width: 768px) {
+
+  .card,
+  .dashboard-card,
+  .booking-card,
+  .search-card,
+  .passport-card,
+  .admin-card {
+    border-radius: 14px;
+  }
+
+  h1 {
+    letter-spacing: -0.01em;
+  }
+
+}

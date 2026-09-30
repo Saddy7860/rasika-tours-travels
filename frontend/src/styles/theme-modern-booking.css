@@ -1,0 +1,284 @@
+/* ==========================================
+   RASIKA TOURS & TRAVELS
+   THEME 2 - MODERN PROFESSIONAL BOOKING
+========================================== */
+
+/* GLOBAL RESET / FEEL */
+
+:root {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --accent: #f97316;
+  --dark: #0f172a;
+  --text: #1e293b;
+  --muted: #64748b;
+  --background: #f8fafc;
+  --white: #ffffff;
+  --border: #e2e8f0;
+}
+
+body {
+  background: #f8fafc !important;
+  color: var(--text) !important;
+}
+
+/* MAIN SECTIONS */
+
+section {
+  position: relative;
+}
+
+/* MODERN CARDS */
+
+.card,
+.booking-card,
+.search-card,
+.passport-card,
+.dashboard-card,
+.admin-card,
+.info-card,
+.stat-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+  transition: all 0.25s ease !important;
+}
+
+.card:hover,
+.booking-card:hover,
+.search-card:hover,
+.passport-card:hover,
+.dashboard-card:hover,
+.info-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.10) !important;
+}
+
+/* BUTTON SYSTEM */
+
+button,
+.btn {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+
+.btn-primary,
+.primary-btn,
+.search-btn,
+.book-btn,
+.submit-btn,
+.login-btn,
+.register-btn {
+  background: #2563eb !important;
+  border: 1px solid #2563eb !important;
+  color: white !important;
+  box-shadow: none !important;
+}
+
+.btn-primary:hover,
+.primary-btn:hover,
+.search-btn:hover,
+.book-btn:hover,
+.submit-btn:hover,
+.login-btn:hover,
+.register-btn:hover {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
+
+/* SECONDARY BUTTONS */
+
+.btn-secondary,
+.secondary-btn {
+  background: white !important;
+  color: #2563eb !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* INPUT DESIGN */
+
+input,
+select,
+textarea {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  min-height: 44px;
+  padding: 10px 14px !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+  outline: none !important;
+}
+
+/* HEADINGS */
+
+h1,
+h2,
+h3,
+h4 {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+/* HEADER */
+
+header,
+.header {
+  background: rgba(255,255,255,0.97) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04) !important;
+}
+
+.header a {
+  color: #475569 !important;
+  font-weight: 500 !important;
+}
+
+.header a:hover {
+  color: #2563eb !important;
+}
+
+/* HERO */
+
+.hero,
+.home-hero,
+.hero-section {
+  background:
+    linear-gradient(
+      135deg,
+      #0f172a 0%,
+      #1e3a8a 55%,
+      #2563eb 100%
+    ) !important;
+  border-radius: 0 !important;
+}
+
+/* SEARCH BOX */
+
+.travel-search,
+.search-container,
+.search-form {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 15px 45px rgba(15,23,42,0.14) !important;
+}
+
+/* DASHBOARD */
+
+.admin-dashboard,
+.customer-dashboard {
+  background: #f8fafc !important;
+}
+
+/* STAT CARDS */
+
+.stat-card {
+  border-left: 4px solid #2563eb !important;
+}
+
+/* TABLE */
+
+table {
+  background: white !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+thead {
+  background: #f1f5f9 !important;
+}
+
+th {
+  color: #334155 !important;
+  font-weight: 700 !important;
+}
+
+td {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+tbody tr:hover {
+  background: #f8fafc !important;
+}
+
+/* BADGES */
+
+.status-confirmed,
+.status-completed,
+.status-approved {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+}
+
+.status-pending {
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+}
+
+.status-cancelled,
+.status-rejected {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+}
+
+/* FOOTER */
+
+footer,
+.footer {
+  background: #0f172a !important;
+  color: #cbd5e1 !important;
+}
+
+/* MODERN SCROLLBAR */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* MOBILE */
+
+@media (max-width: 768px) {
+
+  .card,
+  .booking-card,
+  .search-card,
+  .passport-card {
+    border-radius: 10px !important;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 48px;
+  }
+
+}
