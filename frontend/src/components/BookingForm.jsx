@@ -163,7 +163,6 @@ function BookingForm({ item, type, onClose }) {
       };
 
       const response = await api.post('/bookings', booking);
-      window.dispatchEvent(new CustomEvent("rasika:seat-data-changed", { detail: { type, serviceId, journeyDate } }));
       setBookingRef(response.data.bookingReference);
       setSuccess(true);
     } catch (err) {
