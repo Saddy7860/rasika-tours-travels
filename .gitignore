@@ -30,3 +30,14 @@ yarn-debug.log*
 target/
 build/
 production-backups/
+
+# Local backup directories and files
+.backup-*/
+backup*/
+backups/
+frontend_backup_*/
+production/
+upgrade-workspace/
+**/*.backup
+**/*.backup-*
+**/*.bak
