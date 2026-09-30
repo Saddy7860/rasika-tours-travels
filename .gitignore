@@ -41,3 +41,5 @@ upgrade-workspace/
 **/*.backup
 **/*.backup-*
 **/*.bak
+
+backend/src/main/resources/application.properties.backup.mailfix
