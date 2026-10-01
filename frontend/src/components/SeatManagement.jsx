@@ -142,7 +142,7 @@ function SeatManagement() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       loadSeats();
-    }, 15000);
+    }, 2000);
 
     return () => window.clearInterval(timer);
   }, [loadSeats]);

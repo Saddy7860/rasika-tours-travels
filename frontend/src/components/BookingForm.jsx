@@ -166,6 +166,17 @@ function BookingForm({ item, type, onClose }) {
 
       const response = await api.post('/bookings', booking);
       setBookingRef(response.data.bookingReference);
+
+      window.dispatchEvent(
+        new CustomEvent("rasika:seat-data-changed", {
+          detail: {
+            type,
+            serviceId: item.id,
+            journeyDate: formData.journeyDate
+          }
+        })
+      );
+
       setSuccess(true);
     } catch (err) {
       setError(err.response?.data || err.message || 'Booking failed. Please try again.');
