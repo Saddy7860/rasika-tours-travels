@@ -912,3 +912,46 @@
     width: 100%;
   }
 }
+
+
+/* ================================================================
+   RASIKA TRANSPORT SEAT UI
+   ================================================================ */
+
+.rasika-seat-booking-panel {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.rasika-seat-booking-panel .transport-seat-map {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rasika-seat-selection-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: rgba(37,99,235,.07);
+  border: 1px solid rgba(37,99,235,.12);
+}
+
+.rasika-seat-selection-summary strong {
+  font-size: 14px;
+}
+
+.rasika-seat-selection-summary span {
+  opacity: .7;
+  font-size: 13px;
+}
+
+@media (max-width: 700px) {
+  .rasika-seat-selection-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

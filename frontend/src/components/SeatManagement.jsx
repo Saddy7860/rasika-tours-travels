@@ -1,510 +1,316 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import api from '../services/api';
-import adminService from '../services/adminService';
-import './SeatManagement.css';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import TransportSeatMap from "./TransportSeatMap";
+import "./SeatManagement.css";
 
-const today = new Date().toISOString().split('T')[0];
+const API_BASE =
+  process.env.REACT_APP_API_URL || "http://localhost:8080";
+
+const normalizeType = (value) =>
+  String(value || "").trim().toUpperCase();
 
 function SeatManagement() {
-  const [type, setType] = useState('BUS');
+  const [type, setType] = useState("BUS");
   const [services, setServices] = useState([]);
-  const [serviceId, setServiceId] = useState('');
-  const [journeyDate, setJourneyDate] = useState(today);
-  const [config, setConfig] = useState(null);
-  const [seatMap, setSeatMap] = useState(null);
-  const [capacity, setCapacity] = useState('');
-  const [layout, setLayout] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [serviceId, setServiceId] = useState("");
+  const [journeyDate, setJourneyDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
 
-  const serviceName = (item) => {
-    if (type === 'BUS') {
-      return `${item.busNumber || ''} • ${item.operator || ''} • ${item.fromCity || ''} → ${item.toCity || ''}`;
+  const [seatData, setSeatData] = useState(null);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [loadingSeats, setLoadingSeats] = useState(false);
+  const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const endpointForType = useMemo(() => {
+    switch (type) {
+      case "TRAIN":
+        return `${API_BASE}/api/trains`;
+      case "FLIGHT":
+        return `${API_BASE}/api/flights`;
+      default:
+        return `${API_BASE}/api/buses`;
     }
+  }, [type]);
 
-    if (type === 'TRAIN') {
-      return `${item.trainNumber || ''} • ${item.trainName || ''} • ${item.fromStation || ''} → ${item.toStation || ''}`;
-    }
-
-    return `${item.flightNumber || ''} • ${item.airline || ''} • ${item.fromCity || ''} → ${item.toCity || ''}`;
-  };
-
-  const loadServices = async () => {
-    setError('');
+  const loadServices = useCallback(async () => {
+    setLoadingServices(true);
+    setError("");
 
     try {
-      const data =
-        type === 'BUS'
-          ? await adminService.getAllBuses()
-          : type === 'TRAIN'
-            ? await adminService.getAllTrains()
-            : await adminService.getAllFlights();
+      const response = await fetch(endpointForType);
 
-      const list = Array.isArray(data) ? data : [];
+      if (!response.ok) {
+        throw new Error(`Unable to load ${type.toLowerCase()} services`);
+      }
 
-      setServices(list);
+      const data = await response.json();
+      setServices(Array.isArray(data) ? data : []);
 
-      setServiceId((current) =>
-        list.some((item) => String(item.id) === String(current))
-          ? current
-          : list[0]?.id
-            ? String(list[0].id)
-            : ''
-      );
+      if (data?.length) {
+        setServiceId(String(data[0].id));
+      } else {
+        setServiceId("");
+        setSeatData(null);
+      }
     } catch (err) {
       setServices([]);
-      setError(
-        err.response?.data ||
-        err.message ||
-        'Unable to load services.'
-      );
+      setServiceId("");
+      setSeatData(null);
+      setError(err.message || "Unable to load services");
+    } finally {
+      setLoadingServices(false);
     }
-  };
+  }, [endpointForType, type]);
 
-  const loadSeatData = async () => {
-    if (!serviceId || !journeyDate) return;
+  const loadSeats = useCallback(async () => {
+    if (!serviceId || !journeyDate) {
+      setSeatData(null);
+      return;
+    }
 
-    setLoading(true);
-    setError('');
+    setLoadingSeats(true);
+    setError("");
 
     try {
-      const [cfg, map] = await Promise.all([
-        adminService.getSeatConfig(type, serviceId),
-        api.get('/bookings/seats', {
-          params: {
-            type,
-            serviceId,
-            journeyDate
-          }
-        }).then((res) => res.data)
-      ]);
+      const params = new URLSearchParams({
+        type: normalizeType(type),
+        serviceId: String(serviceId),
+        journeyDate
+      });
 
-      setConfig(cfg);
-      setCapacity(cfg.seatCapacity);
-      setLayout(cfg.layout);
-      setSeatMap(map);
-    } catch (err) {
-      setError(
-        err.response?.data ||
-        err.message ||
-        'Unable to load seat map.'
+      const response = await fetch(
+        `${API_BASE}/api/bookings/seats?${params.toString()}`
       );
+
+      const text = await response.text();
+
+      if (!response.ok) {
+        throw new Error(text || `Seat API returned ${response.status}`);
+      }
+
+      const data = JSON.parse(text);
+      setSeatData(data);
+      setLastUpdated(new Date());
+    } catch (err) {
+      setSeatData(null);
+      setError(err.message || "Unable to load seats");
     } finally {
-      setLoading(false);
+      setLoadingSeats(false);
     }
-  };
+  }, [type, serviceId, journeyDate]);
 
   useEffect(() => {
     loadServices();
-  }, [type]);
+  }, [loadServices]);
 
   useEffect(() => {
-    loadSeatData();
+    loadSeats();
+  }, [loadSeats]);
 
+  useEffect(() => {
     const handleSeatDataChanged = (event) => {
       const detail = event?.detail || {};
-      if (
-        String(detail.type || "").toUpperCase() === String(type || "").toUpperCase() &&
-        String(detail.serviceId || "") === String(serviceId || "") &&
-        String(detail.journeyDate || "") === String(journeyDate || "")
-      ) {
-        loadSeatData();
+
+      const detailType = normalizeType(detail.type);
+      const detailServiceId = String(detail.serviceId || "");
+      const detailJourneyDate = String(detail.journeyDate || "");
+
+      const matches =
+        (!detailType || detailType === normalizeType(type)) &&
+        (!detailServiceId || detailServiceId === String(serviceId)) &&
+        (!detailJourneyDate || detailJourneyDate === journeyDate);
+
+      if (matches) {
+        loadSeats();
       }
     };
 
-    window.addEventListener("rasika:seat-data-changed", handleSeatDataChanged);
+    window.addEventListener(
+      "rasika:seat-data-changed",
+      handleSeatDataChanged
+    );
+
     return () => {
-      window.removeEventListener("rasika:seat-data-changed", handleSeatDataChanged);
+      window.removeEventListener(
+        "rasika:seat-data-changed",
+        handleSeatDataChanged
+      );
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceId, journeyDate, type]);
+  }, [loadSeats, type, serviceId, journeyDate]);
 
-  const saveConfig = async () => {
-    if (!serviceId) return;
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      loadSeats();
+    }, 15000);
 
-    setSaving(true);
-    setError('');
-    setMessage('');
+    return () => window.clearInterval(timer);
+  }, [loadSeats]);
 
-    try {
-      await adminService.saveSeatConfig({
-        bookingType: type,
-        serviceId: Number(serviceId),
-        seatCapacity: Number(capacity),
-        layout
-      });
-
-      setMessage(
-        'Seat configuration saved successfully.'
-      );
-
-      await loadSeatData();
-    } catch (err) {
-      setError(
-        err.response?.data ||
-        err.message ||
-        'Unable to save seat configuration.'
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleBlocked = async (seat) => {
-    if (seat.status === 'OCCUPIED') return;
-
-    setError('');
-    setMessage('');
-
-    try {
-      await adminService.blockSeat({
-        bookingType: type,
-        serviceId: Number(serviceId),
-        seatNumber: seat.seatNumber,
-        blocked: seat.status !== 'BLOCKED'
-      });
-
-      await loadSeatData();
-    } catch (err) {
-      setError(
-        err.response?.data ||
-        err.message ||
-        'Unable to update seat.'
-      );
-    }
-  };
-
-  const selectedService = useMemo(
-    () =>
-      services.find(
-        (item) =>
-          String(item.id) === String(serviceId)
-      ),
-    [services, serviceId]
+  const selectedService = services.find(
+    (service) => String(service.id) === String(serviceId)
   );
 
+  const serviceName = selectedService
+    ? selectedService.operator ||
+      selectedService.trainName ||
+      selectedService.airline ||
+      selectedService.busNumber ||
+      selectedService.trainNumber ||
+      selectedService.flightNumber ||
+      `Service #${serviceId}`
+    : "";
+
+  const handleManualRefresh = () => {
+    loadSeats();
+  };
+
   return (
-    <section className="seat-admin-page">
-
-      <div className="seat-admin-hero">
+    <div className="seat-management-page">
+      <div className="seat-management-header">
         <div>
-          <span>INVENTORY CONTROL</span>
-          <h2>Seat Management</h2>
-          <p>
-            Configure capacity and control live seat inventory
-            for every service.
-          </p>
+          <span className="eyebrow">RASIKA TRANSPORT CONTROL</span>
+          <h1>Seat Management</h1>
+          <p>Manage live seat availability across buses, trains and flights.</p>
         </div>
 
-        <div className="seat-admin-hero-icon">
-          💺
-        </div>
+        <button
+          type="button"
+          className="seat-refresh-button"
+          onClick={handleManualRefresh}
+          disabled={loadingSeats}
+        >
+          {loadingSeats ? "Refreshing..." : "↻ Refresh Seats"}
+        </button>
       </div>
 
-      {message && (
-        <div className="seat-admin-alert success">
-          ✓ {message}
-        </div>
-      )}
-
-      {error && (
-        <div className="seat-admin-alert error">
-          ⚠ {String(error)}
-        </div>
-      )}
-
-      <div className="seat-admin-controls">
-
-        <div className="seat-type-tabs">
-          {['BUS', 'TRAIN', 'FLIGHT'].map((value) => (
+      <div className="seat-controls-card">
+        <div className="transport-tabs">
+          {["BUS", "TRAIN", "FLIGHT"].map((item) => (
             <button
-              key={value}
-              className={
-                type === value ? 'active' : ''
-              }
-              onClick={() => setType(value)}
+              type="button"
+              key={item}
+              className={type === item ? "active" : ""}
+              onClick={() => {
+                setType(item);
+                setSeatData(null);
+              }}
             >
-              {value === 'BUS'
-                ? '🚌 Bus'
-                : value === 'TRAIN'
-                  ? '🚆 Train'
-                  : '✈️ Flight'}
+              {item === "BUS" && "🚌"}
+              {item === "TRAIN" && "🚆"}
+              {item === "FLIGHT" && "✈️"}
+              <span>{item}</span>
             </button>
           ))}
         </div>
 
-        <div className="seat-admin-form-grid">
-
+        <div className="seat-filter-grid">
           <label>
             <span>Service</span>
             <select
               value={serviceId}
-              onChange={(e) =>
-                setServiceId(e.target.value)
-              }
+              onChange={(e) => setServiceId(e.target.value)}
+              disabled={loadingServices}
             >
-              <option value="">
-                Select service
-              </option>
+              {!services.length && (
+                <option value="">No services found</option>
+              )}
 
-              {services.map((item) => (
-                <option
-                  key={item.id}
-                  value={item.id}
-                >
-                  {serviceName(item)}
-                </option>
-              ))}
+              {services.map((service) => {
+                const label =
+                  service.operator ||
+                  service.trainName ||
+                  service.airline ||
+                  service.busNumber ||
+                  service.trainNumber ||
+                  service.flightNumber ||
+                  `Service ${service.id}`;
+
+                return (
+                  <option value={service.id} key={service.id}>
+                    {label} — #{service.id}
+                  </option>
+                );
+              })}
             </select>
           </label>
 
           <label>
-            <span>Journey Date</span>
+            <span>Journey date</span>
             <input
               type="date"
-              min={today}
               value={journeyDate}
-              onChange={(e) =>
-                setJourneyDate(e.target.value)
-              }
+              onChange={(e) => setJourneyDate(e.target.value)}
             />
           </label>
-
-          <label>
-            <span>Seat Capacity</span>
-            <input
-              type="number"
-              min="1"
-              max="500"
-              value={capacity}
-              onChange={(e) =>
-                setCapacity(e.target.value)
-              }
-            />
-          </label>
-
-          <label>
-            <span>Layout</span>
-            <select
-              value={layout}
-              onChange={(e) =>
-                setLayout(e.target.value)
-              }
-            >
-              <option value="2x2">
-                2 × 2
-              </option>
-              <option value="2x3">
-                2 × 3
-              </option>
-              <option value="2x4">
-                2 × 4
-              </option>
-              <option value="3x3">
-                3 × 3
-              </option>
-              <option value="3x4">
-                3 × 4
-              </option>
-            </select>
-          </label>
-
-        </div>
-
-        <div className="seat-admin-actions">
-
-          <button
-            onClick={saveConfig}
-            disabled={
-              !serviceId ||
-              saving ||
-              !capacity
-            }
-          >
-            {saving
-              ? 'Saving...'
-              : 'Save Seat Configuration'}
-          </button>
-
-          <button
-            className="secondary"
-            onClick={loadSeatData}
-            disabled={
-              !serviceId ||
-              loading
-            }
-          >
-            ↻ Refresh Map
-          </button>
-
         </div>
       </div>
 
-      {selectedService && (
-        <div className="selected-service-banner">
-          <strong>
-            {serviceName(selectedService)}
-          </strong>
-
-          <span>
-            Journey: {journeyDate}
-          </span>
+      {error && (
+        <div className="seat-error">
+          <strong>Seat system error</strong>
+          <span>{error}</span>
         </div>
       )}
 
-      {loading ? (
-        <div className="seat-admin-loading">
-          <div className="seat-spinner" />
-          Loading live seat inventory...
-        </div>
-      ) : seatMap ? (
-
-        <div className="seat-admin-layout">
-
-          <div className="seat-admin-card">
-
-            <div className="seat-admin-card-head">
-
-              <div>
-                <span>LIVE INVENTORY</span>
-                <h3>Seat Map</h3>
-              </div>
-
-              <span className="seat-layout-pill">
-                {seatMap.layout}
-              </span>
-
+      {seatData && (
+        <>
+          <div className="seat-summary-grid">
+            <div className="seat-summary-card">
+              <span>Total</span>
+              <strong>{seatData.capacity ?? seatData.seats?.length ?? 0}</strong>
             </div>
 
-            <div className="seat-admin-legend">
-
-              <span>
-                <i className="available" />
-                Available
-              </span>
-
-              <span>
-                <i className="occupied" />
-                Occupied
-              </span>
-
-              <span>
-                <i className="blocked" />
-                Blocked
-              </span>
-
+            <div className="seat-summary-card available">
+              <span>Available</span>
+              <strong>{seatData.availableCount ?? 0}</strong>
             </div>
 
-            <div className="admin-seat-map">
+            <div className="seat-summary-card occupied">
+              <span>Occupied</span>
+              <strong>{seatData.occupiedCount ?? 0}</strong>
+            </div>
 
-              <div className="admin-seat-front">
-                FRONT
-              </div>
+            <div className="seat-summary-card blocked">
+              <span>Blocked</span>
+              <strong>{seatData.blockedCount ?? 0}</strong>
+            </div>
+          </div>
 
-              <div
-                className="admin-seat-grid"
-                style={{
-                  gridTemplateColumns:
-                    `repeat(${seatMap.columns || 4}, minmax(50px, 1fr))`
-                }}
-              >
-
-                {seatMap.seats.map((seat) => (
-
-                  <button
-                    key={seat.seatNumber}
-                    className={
-                      `admin-seat ${seat.status.toLowerCase()}`
-                    }
-                    onClick={() =>
-                      toggleBlocked(seat)
-                    }
-                    disabled={
-                      seat.status === 'OCCUPIED'
-                    }
-                    title={
-                      seat.status === 'OCCUPIED'
-                        ? 'Occupied by customer'
-                        : seat.status === 'BLOCKED'
-                          ? 'Click to unblock'
-                          : 'Click to block'
-                    }
-                  >
-                    {seat.seatNumber}
-                  </button>
-
-                ))}
-
-              </div>
-
-              <p className="seat-admin-hint">
-                Available → click to block.
-                Blocked → click to release.
-                Occupied seats are locked.
+          <div className="seat-service-info">
+            <div>
+              <span className="service-type">{type}</span>
+              <h2>{serviceName}</h2>
+              <p>
+                Service #{serviceId} · {journeyDate}
               </p>
+            </div>
 
+            <div className="seat-live-status">
+              <span className="live-dot" />
+              <span>Live seat data</span>
+              {lastUpdated && (
+                <small>
+                  {lastUpdated.toLocaleTimeString()}
+                </small>
+              )}
             </div>
           </div>
 
-          <div className="seat-admin-card inventory-summary">
+          <TransportSeatMap
+            type={type}
+            seats={seatData.seats || []}
+            readOnly
+          />
+        </>
+      )}
 
-            <span>INVENTORY SUMMARY</span>
-
-            <h3>
-              {selectedService
-                ? serviceName(selectedService)
-                    .split('•')[0]
-                : 'Service'}
-            </h3>
-
-            <div className="inventory-metrics">
-
-              <div>
-                <strong>
-                  {seatMap.capacity}
-                </strong>
-                <span>Total Seats</span>
-              </div>
-
-              <div>
-                <strong>
-                  {seatMap.availableCount}
-                </strong>
-                <span>Available</span>
-              </div>
-
-              <div>
-                <strong>
-                  {seatMap.occupiedCount}
-                </strong>
-                <span>Occupied</span>
-              </div>
-
-              <div>
-                <strong>
-                  {seatMap.blockedCount}
-                </strong>
-                <span>Blocked</span>
-              </div>
-
-            </div>
-
-            <div className="inventory-note">
-              <strong>Date-wise inventory</strong>
-              <br />
-              A booking on one journey date does not consume
-              the same seat on another journey date.
-            </div>
-
-          </div>
-
+      {!seatData && !loadingSeats && !error && (
+        <div className="seat-empty-state">
+          Select a service and journey date to view its live seat map.
         </div>
-
-      ) : null}
-
-    </section>
+      )}
+    </div>
   );
 }
 
