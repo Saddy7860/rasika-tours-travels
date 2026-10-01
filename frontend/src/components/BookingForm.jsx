@@ -1,3 +1,5 @@
+/* RASIKA_SEAT_UI_UPGRADE */
+import TransportSeatMap from "./TransportSeatMap";
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import './BookingForm.css';
@@ -258,15 +260,12 @@ function BookingForm({ item, type, onClose }) {
 
             {seatLoading ? <div className="seat-loading">Loading live seat map…</div> :
               !seatMap || !seatMap.seats?.length ? <div className="seat-loading">No seat configuration is available for this service.</div> :
-              <div className="seat-map">
-                <div className="seat-front">FRONT / DRIVER</div>
-                <div className="seat-grid" style={{ gridTemplateColumns: `repeat(${seatMap.columns || 2}, minmax(48px, 1fr))` }}>
-                  {seatMap.seats.map((seat) => {
-                    const selected = selectedSeats.includes(seat.seatNumber);
-                    return <button type="button" key={seat.seatNumber} className={`seat seat-${seat.status.toLowerCase()} ${selected ? 'selected' : ''}`} onClick={() => toggleSeat(seat)} disabled={seat.status !== 'AVAILABLE' && !selected}>{seat.seatNumber}</button>;
-                  })}
-                </div>
-              </div>
+              <TransportSeatMap
+                type={type}
+                seats={seatMap.seats}
+                selectedSeats={selectedSeats}
+                onSeatClick={toggleSeat}
+              />
             }
           </div>
 
